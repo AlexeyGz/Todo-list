@@ -1,55 +1,106 @@
-import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View, FlatList } from 'react-native';
-import Header from "./components/header"
-import React, {useState} from "react";
-import ListItem from './components/list';
-import Form from './components/form';
+import React, { useState, useEffect } from 'react';
+import { View, Text, TextInput, Button, StyleSheet, Alert } from 'react-native';
 
+const CurrencyConverter = () => {
+  const [amount, setAmount] = useState('');
+  const [convertedAmount, setConvertedAmount] = useState('');
+  const [fromCurrency, setFromCurrency] = useState('USD');
+  const [toCurrency, setToCurrency] = useState('RUB');
+  const [exchangeRates, setExchangeRates] = useState({});
 
-export default function App() {
-  const [listOfItems, setListOfItems] = useState([
-    {text: "Купить батон", key: "1"},
-    {text: "Помыть посуду", key: "2"},
-    {text: "Сделать работу", key: "3"},
-  ])
+  useEffect(() => {
+    const fetchExchangeRates = async () => {
+      try {
+        const response = await fetch('https://api.exchangerate-api.com/v4/latest/USD');
+        const data = await response.json();
+        setExchangeRates(data.rates);
+      } catch (error) {
+        Alert.alert('Error', 'Failed to fetch exchange rates. Please try again later.');
+      }
+    };
 
-  const addHandler = (text) => {
-    setListOfItems((list) => {
-      return[
-        {text: text, key: Math.random().toString(36).substring(7)},
-        ...list
-      ];
-    });
-  };
-  const deleteHandler = (key) => {
-    setListOfItems((list) => {
-      return list.filter((listOfItems) => listOfItems.key != key);
-    });
+    fetchExchangeRates();
+  }, []);
+
+  const handleConvert = () => {
+    if (!amount || isNaN(amount)) {
+      Alert.alert('Invalid Input', 'Please enter a valid number.');
+      return;
+    }
+
+    if (!exchangeRates[toCurrency] || !exchangeRates[fromCurrency]) {
+      Alert.alert('Error', 'Invalid currency selection.');
+      return;
+    }
+
+    const rate = exchangeRates[toCurrency] / exchangeRates[fromCurrency];
+    const result = (parseFloat(amount) * rate).toFixed(2);
+    setConvertedAmount(`${result} ${toCurrency}`);
   };
 
   return (
-    <View style={styles.header}>
-      
-      <Header />
-      <Form addHandler={addHandler}/>
-      <FlatList
-        data = {listOfItems}
-        renderItem = {({ item }) => (
-        <ListItem el={item} deleteHandler={deleteHandler}/>
-      )}
+    <View style={styles.container}>
+      <Text style={styles.header}>Конвертер валют</Text>
+
+      <TextInput
+        style={styles.input}
+        placeholder="Введите сумму"
+        keyboardType="numeric"
+        value={amount}
+        onChangeText={setAmount}
       />
+
+      <TextInput
+        style={styles.input}
+        placeholder="Валюта, из которой переводим (например, USD)"
+        value={fromCurrency}
+        onChangeText={setFromCurrency}
+      />
+
+      <TextInput
+        style={styles.input}
+        placeholder="Валюта, в которую переводим (например, RUB)"
+        value={toCurrency}
+        onChangeText={setToCurrency}
+      />
+
+      <Button title="Перевести" onPress={handleConvert} />
+
+      {convertedAmount ? (
+        <Text style={styles.result}>Итого: {convertedAmount}</Text>
+      ) : null}
     </View>
   );
-}
+};
 
 const styles = StyleSheet.create({
-  header:{
-    flex:1,
-  },
   container: {
     flex: 1,
-    backgroundColor: '#fff',
-    alignItems: 'center',
     justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+    backgroundColor: '#f5f5f5',
+  },
+  header: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginBottom: 20,
+  },
+  input: {
+    width: '100%',
+    height: 40,
+    borderColor: '#ccc',
+    borderWidth: 1,
+    borderRadius: 5,
+    padding: 10,
+    marginBottom: 10,
+    backgroundColor: '#fff',
+  },
+  result: {
+    marginTop: 20,
+    fontSize: 18,
+    fontWeight: 'bold',
   },
 });
+
+export default CurrencyConverter;
